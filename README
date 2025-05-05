@@ -2,6 +2,7 @@ Install mods
 ============
 
 Run WTSMM. It should ask you to input a "state", a "change", and a "restore path". Write the number associated with the item you are setting and send a newline (press return, if you are using it through either command prompt or powershell). 
+
 Now enter the value of the item that you want to set. If it is a state, simply set it to the path of your game directory and send a newline; if it is a change, set it to the path of your mod; if it is a restore path, set it to the path of a directory where you want WTSMM to back up your game files and create the install and restore scripts at.
 
 To install the mod, simply execute the "install.bat" file in the restore path. The mod can be uninstalled by executing the "restore.bat" file. The scripts WTSMM generates use full path names, so you do not have to worry about your present working directory while executing the scripts.
