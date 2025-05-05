@@ -1,0 +1,27 @@
+Install mods
+============
+
+Run WTSMM. It should ask you to input a "state", a "change", and a "restore path". Write the number associated with the item you are setting and send a newline (press return, if you are using it through either command prompt or powershell). 
+Now enter the value of the item that you want to set. If it is a state, simply set it to the path of your game directory and send a newline; if it is a change, set it to the path of your mod; if it is a restore path, set it to the path of a directory where you want WTSMM to back up your game files and create the install and restore scripts at.
+
+To install the mod, simply execute the "install.bat" file in the restore path. The mod can be uninstalled by executing the "restore.bat" file. The scripts WTSMM generates use full path names, so you do not have to worry about your present working directory while executing the scripts.
+
+Compile
+=======
+
+To compile WTSMM, translate src/dbmm.c and src/util.c and link them.
+
+How WTSMM works
+==============
+
+WTSMM is game agnostic. When you install a mod, all WTSMM does is back up the game files that are being modified by the mod and copy the mod files over to the game directory.
+
+Restoration is simply removing the files that the mod added and copying the backed up game files back to the game directory.
+
+If you provide an extension (a path to a dll), WTSMM will try to load the function "start" from it; if it finds it, it will pass the path to the state, path to the change, and path to the restore directories to it (check "ext.h" for the prototype). One can use it to "extend" the mod manager for specific games.
+
+What I may add in the future
+============================
+
+- Ability to download mods from the internet through the WTSMM
+- A GUI (unlikely)
