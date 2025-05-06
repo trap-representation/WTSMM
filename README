@@ -6,7 +6,7 @@ To compile WTSMM, translate src/dbmm.c and src/util.c and link them.
 How WTSMM works
 ===============
 
-WTSMM is game agnostic. When you install a mod, all WTSMM does is back up the game files that are being modified by the mod and copy the mod files over to the game directory.
+The base of WTSMM is game agnostic. When you install a mod, all WTSMM does is back up the game files that are being modified by the mod and copy the mod files over to the game directory. You can, of couse, modify its behavior through extensions for specific games.
 
 Restoration is simply removing the files that the mod added and copying the backed up game files back to the game directory.
 
