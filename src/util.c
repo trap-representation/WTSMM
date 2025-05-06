@@ -3,6 +3,7 @@
 #include <errhandlingapi.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <stdlib.h>
 
 #include "util.h"
 #include "error.h"
@@ -29,7 +30,121 @@ static enum error append_wildcard_to_path(char *p, size_t psize) {
   return SUCCESS;
 }
 
-enum error find_matching(char *statepath, size_t spsize, char *changepath, size_t cpsize, char *apppath, size_t apsize, char *restorepath, FILE *install, FILE *restore, struct modification_info_s *modification_info) {
+static enum error cmp(char *p1, size_t p1size, char *p2, size_t p2size, char *f, size_t fsize, _Bool *same) {
+  enum error r;
+
+  char p1c[MAX_PATH + 1];
+  char p2c[MAX_PATH + 1];
+
+  strncpy(p1c, p1, MAX_PATH + 1);
+  strncpy(p2c, p2, MAX_PATH + 1);
+
+  if ((r = append_to_path(p1c, p1size, f, fsize)) != SUCCESS) {
+    return r;
+  }
+
+  if ((r = append_to_path(p2c, p2size, f, fsize)) != SUCCESS) {
+    return r;
+  }
+
+  FILE *p1f = fopen(p1c, "rb");
+  if (p1f == NULL) {
+    fputs("[FATAL ERROR] fopen returned NULL\n", stderr);
+    return ERR_FOPEN;
+  }
+
+  FILE *p2f = fopen(p2c, "rb");
+  if (p2f == NULL) {
+    fputs("[FATAL ERROR] fopen returned NULL\n", stderr);
+    fclose(p1f);
+    return ERR_FOPEN;
+  }
+
+  char *p1r = malloc(MAX_CMP_BUF_LEN);
+  if (p1r == NULL) {
+    fputs("[FATAL ERROR] malloc returned NULL\n", stderr);
+    fclose(p2f);
+    fclose(p1f);
+    return ERR_MALLOC;
+  }
+
+  char *p2r = malloc(MAX_CMP_BUF_LEN);
+  if (p2r == NULL) {
+    fputs("[FATAL ERROR] malloc returned NULL\n", stderr);
+    free(p1r);
+    fclose(p2f);
+    fclose(p1f);
+    return ERR_MALLOC;
+  }
+
+  size_t r1, r2;
+
+  while((r1 = fread(p1r, 1, MAX_CMP_BUF_LEN, p1f)) != 0) {
+    if (ferror(p1f)) {
+      fputs("[FATAL ERROR] ferror returned a non-zero value\n", stderr);
+      free(p2r);
+      free(p1r);
+      fclose(p2f);
+      fclose(p1f);
+      return ERR_FERROR;
+    }
+
+    r2 = fread(p2r, 1, MAX_CMP_BUF_LEN, p2f);
+
+    if (ferror(p2f)) {
+      fputs("[FATAL ERROR] ferror returned a non-zero value\n", stderr);
+      free(p2r);
+      free(p1r);
+      fclose(p2f);
+      fclose(p1f);
+      return ERR_FERROR;
+    }
+
+    if (r1 != r2) {
+      *same = 0;
+      free(p2r);
+      free(p1r);
+      fclose(p2f);
+      fclose(p1f);
+      return SUCCESS;
+    }
+
+    if (memcmp(p1r, p2r, r1) != 0) {
+      *same = 0;
+      free(p2r);
+      free(p1r);
+      fclose(p2f);
+      fclose(p1f);
+      return SUCCESS;
+    }
+  }
+
+  if (fread(p2r, 1, MAX_CMP_BUF_LEN, p2f) != 0) {
+    if (ferror(p2f)) {
+      fputs("[FATAL ERROR] ferror returned a non-zero value\n", stderr);
+      free(p2r);
+      free(p1r);
+      fclose(p2f);
+      fclose(p1f);
+      return ERR_FERROR;
+    }
+
+    *same = 0;
+
+    free(p2r);
+    free(p1r);
+    fclose(p2f);
+    fclose(p1f);
+
+    return SUCCESS;
+  }
+
+  *same = 1;
+
+  return SUCCESS;
+}
+
+enum error find_matching(char *statepath, size_t spsize, char *changepath, size_t cpsize, char *apppath, size_t apsize, char *restorepath, FILE *install, FILE *restore, struct modification_info_s *modification_info, _Bool cmp_files) {
   char changepathc[MAX_PATH + 1], statepathc[MAX_PATH + 1], apppathc[MAX_PATH + 1];
 
   strncpy(changepathc, changepath, MAX_PATH + 1);
@@ -94,7 +209,7 @@ enum error find_matching(char *statepath, size_t spsize, char *changepath, size_
 		return r;
 	      }
 
-	      if ((r = find_matching(statepathc, spsize + apsize + fnamesz, changepathc, cpsize + apsize + fnamesz, apppathc, apsize + fnamesz, restorepath, install, restore, modification_info)) != SUCCESS) {
+	      if ((r = find_matching(statepathc, spsize + apsize + fnamesz, changepathc, cpsize + apsize + fnamesz, apppathc, apsize + fnamesz, restorepath, install, restore, modification_info, cmp_files)) != SUCCESS) {
 		return r;
 	      }
 
@@ -105,23 +220,34 @@ enum error find_matching(char *statepath, size_t spsize, char *changepath, size_
 	    else {
 	      file_matched = 1;
 
-	      if (fprintf(install, "xcopy /i /e /Y \"%s\\%s\" \"%s%s\\\"\n", statepathc, stateinfo.cFileName, restorepath, strcmp(apppathc, "\\") == 0? "": apppathc) < 0) {
-		fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
-		return ERR_FPRINTF;
-	      }
-	      modification_info->is_backedup++;
+	      _Bool same;
 
-	      if (fprintf(install, "xcopy /Y \"%s\\%s\" \"%s\\\"\n", changepathc, changeinfo.cFileName, statepathc) < 0) {
-		fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
-		return ERR_FPRINTF;
+	      if (cmp_files) {
+		if ((r = cmp(statepathc, spsize, changepathc, cpsize, stateinfo.cFileName, strlen(stateinfo.cFileName), &same)) != SUCCESS) {
+		  return r;
+		}
 	      }
-	      modification_info->is_modified++;
 
-	      if (fprintf(restore, "xcopy /Y \"%s%s\\%s\" \"%s\\\"\n", restorepath, strcmp(apppathc, "\\") == 0? "": apppathc, stateinfo.cFileName, statepathc) < 0) {
-		fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
-		return ERR_FPRINTF;
+	      if ((cmp_files && !same) || !cmp_files) {
+
+		if (fprintf(install, "xcopy /i /e /Y \"%s\\%s\" \"%s%s\\\"\n", statepathc, stateinfo.cFileName, restorepath, strcmp(apppathc, "\\") == 0? "": apppathc) < 0) {
+		  fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
+		  return ERR_FPRINTF;
+		}
+		modification_info->is_backedup++;
+
+		if (fprintf(install, "xcopy /Y \"%s\\%s\" \"%s\\\"\n", changepathc, changeinfo.cFileName, statepathc) < 0) {
+		  fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
+		  return ERR_FPRINTF;
+		}
+		modification_info->is_modified++;
+
+		if (fprintf(restore, "xcopy /Y \"%s%s\\%s\" \"%s\\\"\n", restorepath, strcmp(apppathc, "\\") == 0? "": apppathc, stateinfo.cFileName, statepathc) < 0) {
+		  fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
+		  return ERR_FPRINTF;
+		}
+		modification_info->rs_modified++;
 	      }
-	      modification_info->rs_modified++;
 	    }
 	  }
 	}

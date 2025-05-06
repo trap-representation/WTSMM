@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
     char add_a_state[4];
     char add_a_change[4];
     char add_restorepath[4];
+    char compare_files[4];
     char applied[4];
   } done;
 
@@ -83,8 +84,9 @@ int main(int argc, char *argv[]) {
 	    "[INFO] 2. Add a change (%s) %s\n"
 	    "[INFO] 3. Add restore path (%s) %s\n"
 	    "[INFO] 4. Extension (%s)\n"
-	    "[INFO] 5. Apply %s\n"
-	    "[INFO] 6. Quit\n", statepath, done.add_a_state, changepath, done.add_a_change, restorepath, done.add_restorepath, extensionpath, done.applied);
+	    "[INFO] 5. Compare files (%s)\n"
+	    "[INFO] 6. Apply %s\n"
+	    "[INFO] 6. Quit\n", statepath, done.add_a_state, changepath, done.add_a_change, restorepath, done.add_restorepath, extensionpath, done.compare_files, done.applied);
 
     while (1) {
       if (scanf(" %c", &opt) != 1) {
@@ -92,7 +94,7 @@ int main(int argc, char *argv[]) {
 	return ERR_SCANF;
       }
 
-      if (opt >= '1' && opt <= '6') {
+      if (opt >= '1' && opt <= '7') {
 	break;
       }
 
@@ -191,6 +193,10 @@ int main(int argc, char *argv[]) {
       break;
 
     case '5':
+      strncpy(done.compare_files, "[X]", sizeof(done.add_restorepath));
+      break;
+
+    case '6':
       {
 	enum ext_error er = EXT_SUCCESS;
 
@@ -264,7 +270,7 @@ int main(int argc, char *argv[]) {
 
 	      struct modification_info_s modification_info = {0};
 
-	      r = find_matching(statepath, strlen(statepath), changepath, strlen(changepath), "\\", 1, restorepath, install, restore, &modification_info);
+	      r = find_matching(statepath, strlen(statepath), changepath, strlen(changepath), "\\", 1, restorepath, install, restore, &modification_info, done.compare_files[1] == 'X'? 1: 0);
 
 
 	      if (fprintf(install, "echo %ju files backed up from state, %ju files modified in state, %ju files added to state\n", modification_info.is_backedup, modification_info.is_modified, modification_info.is_added) < 0) {
@@ -328,7 +334,7 @@ int main(int argc, char *argv[]) {
 
       break;
 
-    case '6':
+    case '7':
       return r;
     }
   }
