@@ -13,13 +13,15 @@ Compile
 To compile WTSMM, translate src/dbmm.c and src/util.c and link them.
 
 How WTSMM works
-==============
+===============
 
 WTSMM is game agnostic. When you install a mod, all WTSMM does is back up the game files that are being modified by the mod and copy the mod files over to the game directory.
 
 Restoration is simply removing the files that the mod added and copying the backed up game files back to the game directory.
 
-If you provide an extension (a path to a dll), WTSMM will try to load the function "start" from it; if it finds it, it will pass the path to the state, path to the change, and path to the restore directories to it (check "ext.h" for the prototype). One can use it to "extend" the mod manager for specific games.
+If you provide an extension (a path to a shared library), WTSMM will first try to load the function "init" from it. "init" returns an `enum action` (check "ext.h"), which determines what WTSMM will do next. Depending on the value returned by "init", it does two things: creates the install and restore scripts, and load the "start" function from the extension.
+
+If "init" returns SKIP_NONE, both of the aforementioned actions are performed in the order written. If "init" returns SKIP_CREATESCRIPTS, it refrains from creating the install and restore scripts; if SKIP_EXTSTART is received, the "start" function is not called. SKIP_DEFAULT acts as if both SKIP_CREATESCRIPTS and SKIP_EXTSTART are returned by "init".
 
 What I may add in the future
 ============================
