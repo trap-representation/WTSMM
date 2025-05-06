@@ -8,7 +8,13 @@ enum action {
   SKIP_EXTSTART
 };
 
-#define init_f(statepath, restorepath, changepath) __declspec(dllexport) enum action init(char *statepath, char *restorepath, char *changepath)
-#define start_f(statepath, restorepath, changepath) __declspec(dllexport) unsigned int start(char *statepath, char *restorepath, char *changepath)
+enum ext_error {
+  EXT_SUCCESS,
+  EXTERR_FATAL,
+  EXTERR
+};
+
+#define init_f(statepath, restorepath, changepath, ext_err) __declspec(dllexport) enum action init(char *statepath, char *restorepath, char *changepath, enum ext_error *ext_err)
+#define start_f(statepath, restorepath, changepath, ext_err) __declspec(dllexport) unsigned int start(char *statepath, char *restorepath, char *changepath, enum ext_error* ext_err)
 
 #endif

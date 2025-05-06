@@ -63,17 +63,17 @@ int main(int argc, char *argv[]) {
 
   char opt;
 
-  struct already_done_s {
+  struct done_s {
     char add_a_state[4];
     char add_a_change[4];
     char add_restorepath[4];
     char applied[4];
-  } already_done;
+  } done;
 
-  strncpy(already_done.add_a_state, "[ ]", sizeof(already_done.add_a_state));
-  strncpy(already_done.add_a_change, "[ ]", sizeof(already_done.add_a_change));
-  strncpy(already_done.add_restorepath, "[ ]", sizeof(already_done.add_restorepath));
-  strncpy(already_done.applied, "[ ]", sizeof(already_done.applied));
+  strncpy(done.add_a_state, "[ ]", sizeof(done.add_a_state));
+  strncpy(done.add_a_change, "[ ]", sizeof(done.add_a_change));
+  strncpy(done.add_restorepath, "[ ]", sizeof(done.add_restorepath));
+  strncpy(done.applied, "[ ]", sizeof(done.applied));
 
   enum error r;
 
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
 	    "[INFO] 3. Add restore path (%s) %s\n"
 	    "[INFO] 4. Extension (%s)\n"
 	    "[INFO] 5. Apply %s\n"
-	    "[INFO] 6. Quit\n", statepath, already_done.add_a_state, changepath, already_done.add_a_change, restorepath, already_done.add_restorepath, extensionpath, already_done.applied);
+	    "[INFO] 6. Quit\n", statepath, done.add_a_state, changepath, done.add_a_change, restorepath, done.add_restorepath, extensionpath, done.applied);
 
     while (1) {
       if (scanf(" %c", &opt) != 1) {
@@ -119,8 +119,8 @@ int main(int argc, char *argv[]) {
 	  fputs("[FATAL ERROR] GetFullPathNameA returned 0\n", stderr);
 	  return ERR_GETFULLPATHNAMEA;
 	}
-	strncpy(already_done.add_a_state, "[X]", sizeof(already_done.add_a_state));
-	strncpy(already_done.applied, "[ ]", sizeof(already_done.applied));
+	strncpy(done.add_a_state, "[X]", sizeof(done.add_a_state));
+	strncpy(done.applied, "[ ]", sizeof(done.applied));
       }
 
       break;
@@ -145,8 +145,8 @@ int main(int argc, char *argv[]) {
 	  return ERR_GETFULLPATHNAMEA;
 	}
 
-	strncpy(already_done.add_a_change, "[X]", sizeof(already_done.add_a_change));
-	strncpy(already_done.applied, "[ ]", sizeof(already_done.applied));
+	strncpy(done.add_a_change, "[X]", sizeof(done.add_a_change));
+	strncpy(done.applied, "[ ]", sizeof(done.applied));
       }
 
       break;
@@ -171,8 +171,8 @@ int main(int argc, char *argv[]) {
 	  return ERR_GETFULLPATHNAMEA;
 	}
 
-	strncpy(already_done.add_restorepath, "[X]", sizeof(already_done.add_restorepath));
-	strncpy(already_done.applied, "[ ]", sizeof(already_done.applied));
+	strncpy(done.add_restorepath, "[X]", sizeof(done.add_restorepath));
+	strncpy(done.applied, "[ ]", sizeof(done.applied));
       }
 
       break;
@@ -191,126 +191,138 @@ int main(int argc, char *argv[]) {
       break;
 
     case '5':
-      if (already_done.add_a_state[1] == 'X' && already_done.add_a_change[1] == 'X' && already_done.add_restorepath[1] == 'X') {
-	enum action action_kind = SKIP_NONE;
-	r = 0;
+      {
+	enum ext_error er = EXT_SUCCESS;
 
-	if (extensionpath[0] != '\0') {
-	  HMODULE libh;
-	  if ((libh = LoadLibraryA(extensionpath)) == NULL) {
-	    fputs("[FATAL ERROR] LoadLibraryA returned NULL\n", stderr);
-	    return ERR_LOADLIBRARYA;
-	  }
+	if (done.add_a_state[1] == 'X' && done.add_a_change[1] == 'X' && done.add_restorepath[1] == 'X') {
+	  enum action action_kind = SKIP_NONE;
+	  r = 0;
 
-	  typedef enum action (*init_t)(char *, char *, char *);
-
-	  init_t init_ptr;
-
-	  if ((init_ptr = (init_t) GetProcAddress(libh, "init")) == NULL) {
-	    fputs("[FATAL ERROR] GetProcAddress returned NULL\n", stderr);
-	    FreeLibrary(libh);
-	    return ERR_GETPROCADDRESS;
-	  }
-
-	  action_kind = init_ptr(statepath, changepath, restorepath);
-
-	  FreeLibrary(libh);
-	}
-
-	if (action_kind != SKIP_DEFAULT) {
-	  if (action_kind != SKIP_CREATESCRIPTS) {
-
-	    char ispath[MAX_PATH + 1], rspath[MAX_PATH + 1];
-
-	    size_t restorepathsz = strlen(restorepath);
-
-	    if (restorepathsz + strlen("\\install.bat") > MAX_PATH) {
-	      fputs("[ERROR] Path too large\n", stderr);
-	      r = NFERR_TOOLARGEPATH;
+	  if (extensionpath[0] != '\0') {
+	    HMODULE libh;
+	    if ((libh = LoadLibraryA(extensionpath)) == NULL) {
+	      fputs("[FATAL ERROR] LoadLibraryA returned NULL\n", stderr);
+	      return ERR_LOADLIBRARYA;
 	    }
 
-	    if (restorepathsz + strlen("\\restore.bat") > MAX_PATH) {
-	      fputs("[ERROR] Path too large\n", stderr);
-	      r = NFERR_TOOLARGEPATH;
-	    }
+	    typedef enum action (*init_t)(char *, char *, char *, enum ext_err *);
 
-	    strncpy(ispath, restorepath, MAX_PATH + 1);
+	    init_t init_ptr;
 
-	    strncat(ispath, "\\install.bat", MAX_PATH - restorepathsz);
-
-	    strncpy(rspath, restorepath, MAX_PATH + 1);
-
-	    strncat(rspath, "\\restore.bat", MAX_PATH - restorepathsz);
-
-	    FILE *install, *restore;
-
-	    if ((install = fopen(ispath, "w")) == NULL) {
-	      fputs("[FATAL ERROR] fopen returned NULL\n", stderr);
-	      return ERR_FOPEN;
-	    }
-
-	    if ((restore = fopen(rspath, "w")) == NULL) {
-	      fputs("[FATAL ERROR] fopen returned NULL\n", stderr);
-	      fclose(install);
-	      return ERR_FOPEN;
-	    }
-
-	    struct modification_info_s modification_info = {0};
-
-	    r = find_matching(statepath, strlen(statepath), changepath, strlen(changepath), "\\", 1, restorepath, install, restore, &modification_info);
-
-
-	    if (fprintf(install, "echo %ju files backed up from state, %ju files modified in state, %ju files added to state\n", modification_info.is_backedup, modification_info.is_modified, modification_info.is_added) < 0) {
-	      fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
-	      fclose(restore);
-	      fclose(install);
-	      return ERR_FPRINTF;
-	    }
-
-	    if (fprintf(restore, "echo %ju files modified in state, %ju files deleted from state\n", modification_info.rs_modified, modification_info.rs_deleted) < 0) {
-	      fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
-	      fclose(restore);
-	      fclose(install);
-	      return ERR_FPRINTF;
-	    }
-
-	    fclose(restore);
-	    fclose(install);
-
-	    if (r != SUCCESS && r != NFERR_TOOLARGEPATH) {
-	      return r;
-	    }
-	  }
-
-	  if (action_kind != SKIP_EXTSTART) {
-	    if (extensionpath[0] != '\0') {
-	      HMODULE libh;
-	      if ((libh = LoadLibraryA(extensionpath)) == NULL) {
-		fputs("[FATAL ERROR] LoadLibraryA returned NULL\n", stderr);
-		return ERR_LOADLIBRARYA;
-	      }
-
-	      typedef unsigned int (*start_t)(char *, char *, char *);
-
-	      start_t start_ptr;
-
-	      if ((start_ptr = (start_t) GetProcAddress(libh, "start")) == NULL) {
-		fputs("[FATAL ERROR] GetProcAddress returned NULL\n", stderr);
-		FreeLibrary(libh);
-		return ERR_GETPROCADDRESS;
-	      }
-
-	      if ((r = start_ptr(statepath, changepath, restorepath)) != 0) {
-		fputs("[ERROR] extension returned a non-zero value\n", stderr);
-	      }
-
+	    if ((init_ptr = (init_t) GetProcAddress(libh, "init")) == NULL) {
+	      fputs("[FATAL ERROR] GetProcAddress returned NULL\n", stderr);
 	      FreeLibrary(libh);
+	      return ERR_GETPROCADDRESS;
+	    }
+
+	    action_kind = init_ptr(statepath, changepath, restorepath, &er);
+
+	    FreeLibrary(libh);
+	  }
+
+	  if (er == EXTERR_FATAL) {
+	    return er;
+	  }
+
+	  if (action_kind != SKIP_DEFAULT) {
+	    if (action_kind != SKIP_CREATESCRIPTS) {
+
+	      char ispath[MAX_PATH + 1], rspath[MAX_PATH + 1];
+
+	      size_t restorepathsz = strlen(restorepath);
+
+	      if (restorepathsz + strlen("\\install.bat") > MAX_PATH) {
+		fputs("[ERROR] Path too large\n", stderr);
+		r = NFERR_TOOLARGEPATH;
+	      }
+
+	      if (restorepathsz + strlen("\\restore.bat") > MAX_PATH) {
+		fputs("[ERROR] Path too large\n", stderr);
+		r = NFERR_TOOLARGEPATH;
+	      }
+
+	      strncpy(ispath, restorepath, MAX_PATH + 1);
+
+	      strncat(ispath, "\\install.bat", MAX_PATH - restorepathsz);
+
+	      strncpy(rspath, restorepath, MAX_PATH + 1);
+
+	      strncat(rspath, "\\restore.bat", MAX_PATH - restorepathsz);
+
+	      FILE *install, *restore;
+
+	      if ((install = fopen(ispath, "w")) == NULL) {
+		fputs("[FATAL ERROR] fopen returned NULL\n", stderr);
+		return ERR_FOPEN;
+	      }
+
+	      if ((restore = fopen(rspath, "w")) == NULL) {
+		fputs("[FATAL ERROR] fopen returned NULL\n", stderr);
+		fclose(install);
+		return ERR_FOPEN;
+	      }
+
+	      struct modification_info_s modification_info = {0};
+
+	      r = find_matching(statepath, strlen(statepath), changepath, strlen(changepath), "\\", 1, restorepath, install, restore, &modification_info);
+
+
+	      if (fprintf(install, "echo %ju files backed up from state, %ju files modified in state, %ju files added to state\n", modification_info.is_backedup, modification_info.is_modified, modification_info.is_added) < 0) {
+		fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
+		fclose(restore);
+		fclose(install);
+		return ERR_FPRINTF;
+	      }
+
+	      if (fprintf(restore, "echo %ju files modified in state, %ju files deleted from state\n", modification_info.rs_modified, modification_info.rs_deleted) < 0) {
+		fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
+		fclose(restore);
+		fclose(install);
+		return ERR_FPRINTF;
+	      }
+
+	      fclose(restore);
+	      fclose(install);
+
+	      if (r != SUCCESS && r != NFERR_TOOLARGEPATH) {
+		return r;
+	      }
+	    }
+
+	    if (action_kind != SKIP_EXTSTART) {
+	      if (extensionpath[0] != '\0') {
+		HMODULE libh;
+		if ((libh = LoadLibraryA(extensionpath)) == NULL) {
+		  fputs("[FATAL ERROR] LoadLibraryA returned NULL\n", stderr);
+		  return ERR_LOADLIBRARYA;
+		}
+
+		typedef unsigned int (*start_t)(char *, char *, char *, enum ext_err *);
+
+		start_t start_ptr;
+
+		if ((start_ptr = (start_t) GetProcAddress(libh, "start")) == NULL) {
+		  fputs("[FATAL ERROR] GetProcAddress returned NULL\n", stderr);
+		  FreeLibrary(libh);
+		  return ERR_GETPROCADDRESS;
+		}
+
+		if ((r = start_ptr(statepath, changepath, restorepath, &er)) != 0) {
+		  fputs("[ERROR] extension returned a non-zero value\n", stderr);
+		}
+
+		FreeLibrary(libh);
+	      }
 	    }
 	  }
-	}
 
-	if (r == 0) {
-	  strncpy(already_done.applied, "[X]", sizeof(already_done.applied));
+	  if (er == EXTERR_FATAL) {
+	    return er;
+	  }
+
+	  if (r == 0 && er == EXT_SUCCESS) {
+	    strncpy(done.applied, "[X]", sizeof(done.applied));
+	  }
 	}
       }
 
