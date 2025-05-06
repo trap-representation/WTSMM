@@ -217,93 +217,95 @@ int main(int argc, char *argv[]) {
 	  FreeLibrary(libh);
 	}
 
-	if (action_kind != SKIP_DEFAULT && action_kind != SKIP_CREATESCRIPTS) {
+	if (action_kind != SKIP_DEFAULT) {
+	  if (action_kind != SKIP_CREATESCRIPTS) {
 
-	  char ispath[MAX_PATH + 1], rspath[MAX_PATH + 1];
+	    char ispath[MAX_PATH + 1], rspath[MAX_PATH + 1];
 
-	  size_t restorepathsz = strlen(restorepath);
+	    size_t restorepathsz = strlen(restorepath);
 
-	  if (restorepathsz + strlen("\\install.bat") > MAX_PATH) {
-	    fputs("[ERROR] Path too large\n", stderr);
-	    r = NFERR_TOOLARGEPATH;
-	  }
-
-	  if (restorepathsz + strlen("\\restore.bat") > MAX_PATH) {
-	    fputs("[ERROR] Path too large\n", stderr);
-	    r = NFERR_TOOLARGEPATH;
-	  }
-
-	  strncpy(ispath, restorepath, MAX_PATH + 1);
-
-	  strncat(ispath, "\\install.bat", MAX_PATH - restorepathsz);
-
-	  strncpy(rspath, restorepath, MAX_PATH + 1);
-
-	  strncat(rspath, "\\restore.bat", MAX_PATH - restorepathsz);
-
-	  FILE *install, *restore;
-
-	  if ((install = fopen(ispath, "w")) == NULL) {
-	    fputs("[FATAL ERROR] fopen returned NULL\n", stderr);
-	    return ERR_FOPEN;
-	  }
-
-	  if ((restore = fopen(rspath, "w")) == NULL) {
-	    fputs("[FATAL ERROR] fopen returned NULL\n", stderr);
-	    fclose(install);
-	    return ERR_FOPEN;
-	  }
-
-	  struct modification_info_s modification_info = {0};
-
-	  r = find_matching(statepath, strlen(statepath), changepath, strlen(changepath), "\\", 1, restorepath, install, restore, &modification_info);
-
-
-	  if (fprintf(install, "echo %ju files backed up from state, %ju files modified in state, %ju files added to state\n", modification_info.is_backedup, modification_info.is_modified, modification_info.is_added) < 0) {
-	    fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
-	    fclose(restore);
-	    fclose(install);
-	    return ERR_FPRINTF;
-	  }
-
-	  if (fprintf(restore, "echo %ju files modified in state, %ju files deleted from state\n", modification_info.rs_modified, modification_info.rs_deleted) < 0) {
-	    fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
-	    fclose(restore);
-	    fclose(install);
-	    return ERR_FPRINTF;
-	  }
-
-	  fclose(restore);
-	  fclose(install);
-
-	  if (r != SUCCESS && r != NFERR_TOOLARGEPATH) {
-	    return r;
-	  }
-	}
-
-	if (action_kind != SKIP_DEFAULT && action_kind != SKIP_EXTSTART) {
-	  if (extensionpath[0] != '\0') {
-	    HMODULE libh;
-	    if ((libh = LoadLibraryA(extensionpath)) == NULL) {
-	      fputs("[FATAL ERROR] LoadLibraryA returned NULL\n", stderr);
-	      return ERR_LOADLIBRARYA;
+	    if (restorepathsz + strlen("\\install.bat") > MAX_PATH) {
+	      fputs("[ERROR] Path too large\n", stderr);
+	      r = NFERR_TOOLARGEPATH;
 	    }
 
-	    typedef unsigned int (*start_t)(char *, char *, char *);
+	    if (restorepathsz + strlen("\\restore.bat") > MAX_PATH) {
+	      fputs("[ERROR] Path too large\n", stderr);
+	      r = NFERR_TOOLARGEPATH;
+	    }
 
-	    start_t start_ptr;
+	    strncpy(ispath, restorepath, MAX_PATH + 1);
 
-	    if ((start_ptr = (start_t) GetProcAddress(libh, "start")) == NULL) {
-	      fputs("[FATAL ERROR] GetProcAddress returned NULL\n", stderr);
+	    strncat(ispath, "\\install.bat", MAX_PATH - restorepathsz);
+
+	    strncpy(rspath, restorepath, MAX_PATH + 1);
+
+	    strncat(rspath, "\\restore.bat", MAX_PATH - restorepathsz);
+
+	    FILE *install, *restore;
+
+	    if ((install = fopen(ispath, "w")) == NULL) {
+	      fputs("[FATAL ERROR] fopen returned NULL\n", stderr);
+	      return ERR_FOPEN;
+	    }
+
+	    if ((restore = fopen(rspath, "w")) == NULL) {
+	      fputs("[FATAL ERROR] fopen returned NULL\n", stderr);
+	      fclose(install);
+	      return ERR_FOPEN;
+	    }
+
+	    struct modification_info_s modification_info = {0};
+
+	    r = find_matching(statepath, strlen(statepath), changepath, strlen(changepath), "\\", 1, restorepath, install, restore, &modification_info);
+
+
+	    if (fprintf(install, "echo %ju files backed up from state, %ju files modified in state, %ju files added to state\n", modification_info.is_backedup, modification_info.is_modified, modification_info.is_added) < 0) {
+	      fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
+	      fclose(restore);
+	      fclose(install);
+	      return ERR_FPRINTF;
+	    }
+
+	    if (fprintf(restore, "echo %ju files modified in state, %ju files deleted from state\n", modification_info.rs_modified, modification_info.rs_deleted) < 0) {
+	      fputs("[FATAL ERROR] fprintf returned a negative value\n", stderr);
+	      fclose(restore);
+	      fclose(install);
+	      return ERR_FPRINTF;
+	    }
+
+	    fclose(restore);
+	    fclose(install);
+
+	    if (r != SUCCESS && r != NFERR_TOOLARGEPATH) {
+	      return r;
+	    }
+	  }
+
+	  if (action_kind != SKIP_EXTSTART) {
+	    if (extensionpath[0] != '\0') {
+	      HMODULE libh;
+	      if ((libh = LoadLibraryA(extensionpath)) == NULL) {
+		fputs("[FATAL ERROR] LoadLibraryA returned NULL\n", stderr);
+		return ERR_LOADLIBRARYA;
+	      }
+
+	      typedef unsigned int (*start_t)(char *, char *, char *);
+
+	      start_t start_ptr;
+
+	      if ((start_ptr = (start_t) GetProcAddress(libh, "start")) == NULL) {
+		fputs("[FATAL ERROR] GetProcAddress returned NULL\n", stderr);
+		FreeLibrary(libh);
+		return ERR_GETPROCADDRESS;
+	      }
+
+	      if ((r = start_ptr(statepath, changepath, restorepath)) != 0) {
+		fputs("[ERROR] extension returned a non-zero value\n", stderr);
+	      }
+
 	      FreeLibrary(libh);
-	      return ERR_GETPROCADDRESS;
 	    }
-
-	    if ((r = start_ptr(statepath, changepath, restorepath)) != 0) {
-	      fputs("[ERROR] extension returned a non-zero value\n", stderr);
-	    }
-
-	    FreeLibrary(libh);
 	  }
 	}
 
