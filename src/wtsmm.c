@@ -192,7 +192,7 @@ int main(int argc, char *argv[]) {
 
     case '5':
       if (already_done.add_a_state[1] == 'X' && already_done.add_a_change[1] == 'X' && already_done.add_restorepath[1] == 'X') {
-	enum process process_kind = SKIP_NONE;
+	enum action action_kind = SKIP_NONE;
 	r = 0;
 
 	if (extensionpath[0] != '\0') {
@@ -202,7 +202,7 @@ int main(int argc, char *argv[]) {
 	    return ERR_LOADLIBRARYA;
 	  }
 
-	  typedef enum process (*init_t)(char *, char *, char *);
+	  typedef enum action (*init_t)(char *, char *, char *);
 
 	  init_t init_ptr;
 
@@ -212,12 +212,12 @@ int main(int argc, char *argv[]) {
 	    return ERR_GETPROCADDRESS;
 	  }
 
-	  process_kind = init_ptr(statepath, changepath, restorepath);
+	  action_kind = init_ptr(statepath, changepath, restorepath);
 
 	  FreeLibrary(libh);
 	}
 
-	if (process_kind != SKIP_DEFAULT && process_kind != SKIP_CREATESCRIPTS) {
+	if (action_kind != SKIP_DEFAULT && action_kind != SKIP_CREATESCRIPTS) {
 
 	  char ispath[MAX_PATH + 1], rspath[MAX_PATH + 1];
 
@@ -281,7 +281,7 @@ int main(int argc, char *argv[]) {
 	  }
 	}
 
-	if (process_kind != SKIP_DEFAULT && process_kind != SKIP_EXTSTART) {
+	if (action_kind != SKIP_DEFAULT && action_kind != SKIP_EXTSTART) {
 	  if (extensionpath[0] != '\0') {
 	    HMODULE libh;
 	    if ((libh = LoadLibraryA(extensionpath)) == NULL) {
