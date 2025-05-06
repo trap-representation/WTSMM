@@ -6,9 +6,9 @@ To compile WTSMM, translate src/dbmm.c and src/util.c and link them.
 How WTSMM works
 ===============
 
-The base of WTSMM is game agnostic. When you install a mod, all WTSMM does is back up the game files that are being modified by the mod and copy the mod files over to the game directory. You can, of couse, modify its behavior through extensions for specific games.
+The base of WTSMM is game agnostic. When you install a mod, all WTSMM does is back up the game files that are being modified by the mod and copy the mod files over to the game directory. Restoration is simply removing the files that the mod added and copying the backed up game files back to the game directory.
 
-Restoration is simply removing the files that the mod added and copying the backed up game files back to the game directory.
+You can, of couse, modify its behavior through extensions for specific games.
 
 If you provide an extension (a path to a shared library), WTSMM will first try to load the function "init" from it. "init" returns an `enum action` (check "ext.h"), which determines what WTSMM will do next. Depending on the value returned by "init", it can do both of, one of, or neither of the following two things: create the install and restore scripts, and load the "start" function from the extension.
 
