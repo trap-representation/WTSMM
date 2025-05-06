@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
       break;
 
     case '5':
-      strncpy(done.compare_files, "[X]", sizeof(done.add_restorepath));
+      strncpy(done.compare_files, "[X]", sizeof(done.compare_files));
       break;
 
     case '6':
